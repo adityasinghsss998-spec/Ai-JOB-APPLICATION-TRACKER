@@ -4,6 +4,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import DeleteResumeButton from "@/components/DeleteResumeButton";
 
 export default async function ResumePage() {
   const supabase = await createClient();
@@ -58,11 +59,14 @@ export default async function ResumePage() {
                         Uploaded on: {new Date(resume.created_at).toLocaleDateString()}
                       </p>
                     </div>
-                    <Button variant="outline" size="sm" asChild>
-                      <a href={resume.file_url} target="_blank" rel="noopener noreferrer">
-                        View Resume
-                      </a>
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" asChild>
+                        <a href={resume.file_url} target="_blank" rel="noopener noreferrer">
+                          View Resume
+                        </a>
+                      </Button>
+                      <DeleteResumeButton id={resume.id} filePath={resume.file_path} />
+                    </div>
                   </li>
                 ))}
               </ul>
