@@ -14,5 +14,5 @@ async function run() {
     console.log('Resumes bucket exists and details are:', data);
   }
 }
-
+console.log("testing")
 run().catch(console.error);
