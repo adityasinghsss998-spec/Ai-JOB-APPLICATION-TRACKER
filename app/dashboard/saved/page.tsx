@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import DashboardLayout from "@/components/DashboardLayout";
 import JobsDashboard from "@/components/JobsDashboard";
 
-export default async function DashboardPage() {
+export default async function SavedJobsPage() {
   const supabase = await createClient();
   const {
     data: { user },
@@ -13,14 +13,14 @@ export default async function DashboardPage() {
     redirect("/sign-in");
   }
 
-  // Fetch complete profile details to calculate ATS completeness scores & populate welcome banners
+  // Fetch candidate profile details
   const { data: profile } = await supabase
     .from("profiles")
     .select("*")
     .eq("id", user.id)
     .single();
 
-  // Compile real-time timeline activities from Supabase
+  // Compile activity history to render in the sidebar
   const activities: Array<{
     id: string;
     type: "resume_upload" | "job_save" | "job_apply";
@@ -82,6 +82,7 @@ export default async function DashboardPage() {
       <JobsDashboard 
         profile={profile} 
         initialActivities={activities.slice(0, 5)} 
+        mode="saved" 
       />
     </DashboardLayout>
   );

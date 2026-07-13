@@ -12,7 +12,15 @@ import {
 import ProfileCompletenessCard from "@/components/ProfileCompletenessCard"
 import ProfileDetailsForm from "@/components/ProfileDetailsForm"
 
-export default async function ProfilePage() {
+interface PageProps {
+  searchParams: Promise<{
+    missingJobId?: string;
+  }>;
+}
+
+export default async function ProfilePage({ searchParams }: PageProps) {
+  const params = await searchParams;
+  const missingJobId = params?.missingJobId;
   const supabase = await createClient()
   const {
     data: { user },
@@ -28,38 +36,22 @@ export default async function ProfilePage() {
     .eq("id", user.id)
     .single()
 
-  // Auto-clear logic: If the user has no resumes, clear any stale details in the profile
-  const { data: userResumes } = await supabase
-    .from("resumes")
-    .select("id")
-    .eq("user_id", user.id)
+  let missingFields: string[] = [];
+  let jobTitle = "";
+  let companyName = "";
 
-  if (!userResumes || userResumes.length === 0) {
-    const hasData = profile?.full_name || profile?.email || profile?.phone || profile?.location || profile?.summary || (profile?.skills && profile.skills.length > 0) || (profile as any)?.projects
-    if (hasData) {
-      console.log("No resumes found but profile has data. Clearing stale profile data...")
-      await supabase
-        .from("profiles")
-        .update({
-          full_name: null,
-          email: null,
-          phone: null,
-          location: null,
-          summary: null,
-          skills: null,
-          current_company: null,
-          current_job_title: null,
-          projects: null,
-        } as any)
-        .eq("id", user.id)
+  if (missingJobId) {
+    const { data: job } = await supabase
+      .from("jobs" as any)
+      .select("title, company, missing_fields")
+      .eq("id", missingJobId)
+      .eq("user_id", user.id)
+      .single();
 
-      // Re-fetch updated profile
-      const { data: updatedProfile } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single()
-      profile = updatedProfile
+    if (job) {
+      missingFields = (job as any).missing_fields || [];
+      jobTitle = (job as any).title || "";
+      companyName = (job as any).company || "";
     }
   }
 
@@ -90,7 +82,7 @@ export default async function ProfilePage() {
             </div>
             <div className="flex-1">
               <p className="text-sm font-semibold">AI-Powered Extraction Active</p>
-              <p className="text-xs text-emerald-600/90 dark:text-emerald-400/80">Resume parsing uses Google Gemini 2.5 Flash for high-accuracy details extraction.</p>
+              <p className="text-xs text-emerald-600/90 dark:text-emerald-400/80">Resume parsing uses Google Gemini Flash for high-accuracy details extraction.</p>
             </div>
           </div>
         ) : (
@@ -119,7 +111,13 @@ export default async function ProfilePage() {
           <ProfileCompletenessCard profile={profile} />
         )}
 
-        <ProfileDetailsForm initialProfile={profile as any} />
+        <ProfileDetailsForm 
+          initialProfile={profile as any} 
+          missingJobId={missingJobId}
+          missingFields={missingFields}
+          jobTitle={jobTitle}
+          companyName={companyName}
+        />
 
         {/* Step-by-step Setup Guide */}
         <Card>

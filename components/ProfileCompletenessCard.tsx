@@ -46,7 +46,7 @@ export default function ProfileCompletenessCard({ profile }: ProfileCompleteness
           Complete all categories to ensure high ATS compatibility for job matching.
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col sm:flex-row items-center gap-6 pb-6">
+      <CardContent className="flex flex-col items-center gap-6 pb-6">
         {/* Circular Progress SVG */}
         <div className="relative flex items-center justify-center h-24 w-24 shrink-0">
           <svg className="h-full w-full transform -rotate-90">
@@ -78,7 +78,7 @@ export default function ProfileCompletenessCard({ profile }: ProfileCompleteness
         </div>
 
         {/* Categories Checklist */}
-        <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-xs">
+        <div className="w-full border-t border-muted/50 pt-5 space-y-2.5 text-xs">
           <div className="flex items-center gap-2">
             {checks.fullName ? (
               <HugeiconsIcon icon={CheckmarkCircle01Icon} className="text-emerald-500 h-4.5 w-4.5 shrink-0" />
