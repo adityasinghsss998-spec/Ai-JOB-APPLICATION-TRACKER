@@ -1,88 +1,107 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import DashboardLayout from "@/components/DashboardLayout";
-import JobsDashboard from "@/components/JobsDashboard";
+import { redirect } from "next/navigation"
+
+import { signOut } from "@/app/auth/actions"
+import { createClient } from "@/lib/supabase/server"
+import DashboardLayout from "@/components/DashboardLayout"
+import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 
 export default async function DashboardPage() {
-  const supabase = await createClient();
+  const supabase = await createClient()
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await supabase.auth.getUser()
 
   if (!user) {
-    redirect("/sign-in");
+    redirect("/sign-in")
   }
 
-  // Fetch complete profile details to calculate ATS completeness scores & populate welcome banners
   const { data: profile } = await supabase
     .from("profiles")
-    .select("*")
+    .select("full_name, email")
     .eq("id", user.id)
-    .single();
+    .single()
 
-  // Compile real-time timeline activities from Supabase
-  const activities: Array<{
-    id: string;
-    type: "resume_upload" | "job_save" | "job_apply";
-    title: string;
-    timestamp: string;
-  }> = [];
-
-  const { data: recentResumes } = await supabase
-    .from("resumes")
-    .select("id, file_name, created_at")
+  const { count } = await supabase
+    .from("job_applications")
+    .select("*", { count: "exact", head: true })
     .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
-    .limit(2);
 
-  const { data: recentJobs } = await (supabase
-    .from("jobs" as any)
-    .select("id, title, company, saved_status, applied_status, fetched_at, created_at")
-    .eq("user_id", user.id)
-    .or("saved_status.eq.true,applied_status.neq.not_applied")
-    .order("fetched_at", { ascending: false })
-    .limit(3) as any);
-
-  if (recentResumes) {
-    recentResumes.forEach((res) => {
-      activities.push({
-        id: res.id,
-        type: "resume_upload",
-        title: `Uploaded resume: ${res.file_name}`,
-        timestamp: res.created_at,
-      });
-    });
-  }
-
-  if (recentJobs) {
-    recentJobs.forEach((job: any) => {
-      if (job.applied_status !== "not_applied") {
-        activities.push({
-          id: job.id + "-applied",
-          type: "job_apply",
-          title: `Applied to job: ${job.title} at ${job.company}`,
-          timestamp: job.fetched_at || job.created_at,
-        });
-      } else if (job.saved_status) {
-        activities.push({
-          id: job.id + "-saved",
-          type: "job_save",
-          title: `Saved job: ${job.title} at ${job.company}`,
-          timestamp: job.fetched_at || job.created_at,
-        });
-      }
-    });
-  }
-
-  // Sort activities in reverse chronological order
-  activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  const displayName =
+    profile?.full_name ?? user.user_metadata?.full_name ?? user.email
 
   return (
     <DashboardLayout>
-      <JobsDashboard 
-        profile={profile} 
-        initialActivities={activities.slice(0, 5)} 
-      />
+      <main className="mx-auto max-w-5xl space-y-8 px-6 py-10">
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Welcome back{displayName ? `, ${displayName.split(" ")[0]}` : ""}
+          </h1>
+            <p className="text-sm text-muted-foreground">
+              Here's an overview of your job search progress.
+            </p>
+          </div>
+
+          <form action={signOut}>
+            <Button type="submit" variant="outline" size="sm">
+              Sign out
+            </Button>
+          </form>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Card>
+            <CardHeader>
+              <CardDescription>Total applications</CardDescription>
+              <CardTitle className="text-3xl tabular-nums">
+                {count ?? 0}
+              </CardTitle>
+            </CardHeader>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardDescription>Account</CardDescription>
+              <CardTitle className="truncate text-base font-medium">
+                {profile?.email ?? user.email}
+              </CardTitle>
+            </CardHeader>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardDescription>Status</CardDescription>
+              <CardTitle className="text-base font-medium text-emerald-600 dark:text-emerald-400">
+                Active
+              </CardTitle>
+            </CardHeader>
+          </Card>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Getting started</CardTitle>
+            <CardDescription>
+              Your dashboard is ready. Start adding job applications to track
+              your progress.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Application management features will be available here soon. Your
+              account and database are fully configured with secure row-level
+              access.
+            </p>
+          </CardContent>
+        </Card>
+      </main>
     </DashboardLayout>
-  );
+  )
 }

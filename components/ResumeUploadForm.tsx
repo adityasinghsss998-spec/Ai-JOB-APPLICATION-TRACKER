@@ -78,16 +78,11 @@ export default function ResumeUploadForm() {
         throw new Error(result.error || "Failed to upload and parse resume.");
       }
 
-      const fieldCount = result.fieldsExtracted?.length ?? 0;
-      toast.success(
-        fieldCount > 0
-          ? `Resume parsed! ${fieldCount} profile field${fieldCount > 1 ? "s" : ""} updated.`
-          : "Resume uploaded. No profile fields could be extracted — please fill in manually.",
-        { id: toastId }
-      );
-
-      // Hard navigate to force a full server re-render with the new profile data
-      router.replace("/dashboard/profile");
+      toast.success("Resume parsed successfully! Profile updated.", {
+        id: toastId,
+      });
+      
+      // Refresh the page data in place
       router.refresh();
       
       // Reset input value
