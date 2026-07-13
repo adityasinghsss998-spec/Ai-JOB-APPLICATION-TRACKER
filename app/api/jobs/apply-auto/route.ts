@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { inngest } from "@/lib/inngest";
 import { detectJobPlatform } from "@/lib/browserbase/platform";
+import { PLAN_LIMITS } from "@/lib/plan-limits";
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -31,33 +32,27 @@ export async function POST(req: NextRequest) {
 
     const profile = profileRaw as any;
     const plan = profile.plan_name || "Free";
-    const todayStr = new Date().toISOString().split("T")[0];
-    let usageCount = profile.daily_usage_count || 0;
+    const planLimit = PLAN_LIMITS[plan as keyof typeof PLAN_LIMITS] ?? PLAN_LIMITS.Free;
 
-    // Reset daily usage count if a new calendar day has started
-    if (profile.last_usage_date !== todayStr) {
-      usageCount = 0;
-      await supabase
-        .from("profiles")
-        .update({
-          daily_usage_count: 0,
-          last_usage_date: todayStr,
-        } as any)
-        .eq("id", user.id);
+    // Atomically increment usage count with plan limit check
+    const { data: incrementResult, error: rpcError } = await supabase
+      .rpc("increment_daily_usage", {
+        p_user_id: user.id,
+        p_plan_limit: planLimit,
+      });
+
+    if (rpcError) {
+      console.error("Error calling increment_daily_usage RPC:", rpcError);
+      return NextResponse.json({
+        error: "Failed to validate usage limits. Please try again.",
+      }, { status: 500 });
     }
 
-    // Block if user has reached daily limits based on subscription tier
-    if (plan === "Free" && usageCount >= 5) {
+    // Check if limit was reached
+    if (!incrementResult) {
+      const limitValue = planLimit === -1 ? "unlimited" : planLimit;
       return NextResponse.json({
-        error: "Daily limit reached. Free users are limited to 5 AI applications per day. Please upgrade your subscription tier.",
-        limitReached: true,
-        plan,
-      }, { status: 403 });
-    }
-
-    if (plan === "Pro" && usageCount >= 25) {
-      return NextResponse.json({
-        error: "Daily limit reached. Pro users are limited to 25 AI applications per day. Upgrade to Unlimited for unrestricted usage.",
+        error: `Daily limit reached. ${plan} users are limited to ${limitValue} AI applications per day. ${plan === "Free" ? "Please upgrade your subscription tier." : plan === "Pro" ? "Upgrade to Unlimited for unrestricted usage." : ""}`,
         limitReached: true,
         plan,
       }, { status: 403 });
@@ -80,6 +75,18 @@ export async function POST(req: NextRequest) {
     // Detect the job board platform
     const platform = detectJobPlatform(job.job_url, job.platform);
 
+    // Trigger the background Inngest event BEFORE updating status
+    // This ensures that if the event send fails, the job status remains unchanged and retryable
+    await inngest.send({
+      name: "job/detect-fields",
+      data: {
+        jobId,
+        userId: user.id,
+        jobUrl: job.job_url,
+        platform,
+      },
+    });
+
     // Update job status to 'detecting' and clear previous errors
     const { error: updateError } = await supabase
       .from("jobs" as any)
@@ -94,17 +101,6 @@ export async function POST(req: NextRequest) {
       console.error("Error updating job status:", updateError);
       return NextResponse.json({ error: "Failed to update job status" }, { status: 500 });
     }
-
-    // Trigger the background Inngest event
-    await inngest.send({
-      name: "job/detect-fields",
-      data: {
-        jobId,
-        userId: user.id,
-        jobUrl: job.job_url,
-        platform,
-      },
-    });
 
     return NextResponse.json({
       success: true,

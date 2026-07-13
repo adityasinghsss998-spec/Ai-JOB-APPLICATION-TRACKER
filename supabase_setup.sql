@@ -256,4 +256,54 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS current_period_start TIMEST
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS current_period_end TIMESTAMPTZ;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'unpaid';
 
+-- =========================================================================
+-- 8. ATOMIC DAILY USAGE INCREMENT FUNCTION
+-- =========================================================================
+
+-- Function to atomically increment daily usage count with plan limit check
+-- Returns true if increment succeeded, false if limit reached
+CREATE OR REPLACE FUNCTION public.increment_daily_usage(
+  p_user_id UUID,
+  p_plan_limit INTEGER
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_current_count INTEGER;
+  v_last_date DATE;
+  v_today DATE;
+BEGIN
+  v_today := CURRENT_DATE;
+
+  -- Lock the row for update to ensure atomicity
+  SELECT daily_usage_count, last_usage_date
+  INTO v_current_count, v_last_date
+  FROM public.profiles
+  WHERE id = p_user_id
+  FOR UPDATE;
+
+  -- Reset count if it's a new day
+  IF v_last_date IS NULL OR v_last_date < v_today THEN
+    v_current_count := 0;
+  END IF;
+
+  -- Check if under limit (unlimited plans have negative limit)
+  IF p_plan_limit < 0 OR v_current_count < p_plan_limit THEN
+    -- Increment usage
+    UPDATE public.profiles
+    SET
+      daily_usage_count = v_current_count + 1,
+      last_usage_date = v_today
+    WHERE id = p_user_id;
+
+    RETURN true;
+  ELSE
+    -- Limit reached
+    RETURN false;
+  END IF;
+END;
+$$;
+
 
