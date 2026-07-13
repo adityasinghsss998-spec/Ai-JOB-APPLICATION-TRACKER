@@ -30,6 +30,10 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     current_company TEXT,
     current_job_title TEXT,
     projects JSONB,
+    work_experience JSONB,
+    education JSONB,
+    certifications TEXT[],
+    links TEXT[],
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -42,6 +46,11 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS skills TEXT[];
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS current_company TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS current_job_title TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS projects JSONB;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS work_experience JSONB;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS education JSONB;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS certifications TEXT[];
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS links TEXT[];
+
 
 -- B. Job Applications Table
 CREATE TABLE IF NOT EXISTS public.job_applications (
@@ -151,7 +160,7 @@ VALUES ('resumes', 'resumes', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- Enable RLS on storage.objects (if not already enabled)
-ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+
 
 -- Allow public read access to resumes
 DROP POLICY IF EXISTS "Public Read Resumes" ON storage.objects;
@@ -192,3 +201,59 @@ USING (
   bucket_id = 'resumes' AND
   (storage.foldername(name))[1] = auth.uid()::text
 );
+
+-- D. Jobs Table
+CREATE TABLE IF NOT EXISTS public.jobs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    platform TEXT NOT NULL,
+    title TEXT NOT NULL,
+    company TEXT NOT NULL,
+    company_logo TEXT,
+    location TEXT,
+    salary TEXT,
+    job_type TEXT,
+    experience_level TEXT,
+    description TEXT,
+    tags JSONB,
+    match_score INTEGER,
+    job_url TEXT NOT NULL,
+    source_url TEXT,
+    applied_status TEXT NOT NULL DEFAULT 'not_applied',
+    saved_status BOOLEAN NOT NULL DEFAULT false,
+    fetched_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Enable RLS on jobs
+ALTER TABLE public.jobs ENABLE ROW LEVEL SECURITY;
+
+-- Allow users to manage their own jobs
+DROP POLICY IF EXISTS "Manage Own Jobs" ON public.jobs;
+CREATE POLICY "Manage Own Jobs" ON public.jobs
+    FOR ALL TO authenticated
+    USING (user_id = auth.uid())
+    WITH CHECK (user_id = auth.uid());
+
+-- =========================================================================
+-- 6. AUTOMATED APPLICATION FIELDS
+-- =========================================================================
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS browserbase_session_id TEXT;
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS missing_fields JSONB;
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS detected_fields JSONB;
+
+-- =========================================================================
+-- 7. BILLING & SUBSCRIPTION INTEGRATION (PROFILES UPDATE)
+-- =========================================================================
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS subscription_status TEXT DEFAULT 'active';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS plan_name TEXT DEFAULT 'Free';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS plan_limit INTEGER DEFAULT 3;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS daily_usage_count INTEGER DEFAULT 0;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_usage_date DATE DEFAULT CURRENT_DATE;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS current_period_start TIMESTAMPTZ;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS current_period_end TIMESTAMPTZ;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'unpaid';
+
+

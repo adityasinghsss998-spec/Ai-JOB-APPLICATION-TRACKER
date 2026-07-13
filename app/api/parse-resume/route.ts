@@ -1,40 +1,51 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { v4 as uuidv4 } from "uuid";
-import PDFParser from "pdf2json";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// We create a Promise wrapper for pdf2json to make it work with modern async/await
-const extractTextFromPDF = (buffer: Buffer): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    // The true tells the parser we only want raw text, not structural data
-    const pdfParser = new PDFParser(null, true); 
-    
-    pdfParser.on("pdfParser_dataError", (errData) => {
-      const errMsg = errData instanceof Error 
-        ? errData.message 
-        : (errData && typeof errData === "object" && "parserError" in errData 
-            ? String((errData as any).parserError) 
-            : JSON.stringify(errData));
-      reject(new Error(errMsg || "PDF parsing failed"));
-    });
-    
-    pdfParser.on("pdfParser_dataReady", () => {
-      const rawText = pdfParser.getRawTextContent();
-      if (!rawText) {
-        reject(new Error("No text content could be extracted from the PDF"));
-      } else {
-        resolve(rawText);
-      }
-    });
-    
-    pdfParser.parseBuffer(buffer);
-  });
-};
+// ─── Types ────────────────────────────────────────────────────────────────────
+interface WorkExperience {
+  company: string;
+  jobTitle: string;
+  duration?: string;
+  responsibilities?: string[];
+}
 
+interface Education {
+  school: string;
+  degree?: string;
+  fieldOfStudy?: string;
+  duration?: string;
+}
+
+interface Project {
+  title: string;
+  description?: string;
+  technologies?: string[];
+}
+
+interface ExtractedResumeData {
+  [key: string]: unknown;
+  fullName: string;
+  email: string;
+  phone: string;
+  location: string;
+  summary: string;
+  skills: string[];
+  workExperience: WorkExperience[];
+  education: Education[];
+  projects: Project[];
+  certifications: string[];
+  links: string[];
+}
+
+// ─── Main POST Handler ────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -47,11 +58,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No resume file provided" }, { status: 400 });
     }
 
-    // 1. Upload and save the resume file to Supabase Storage
+    if (!resumeFile.name.toLowerCase().endsWith(".pdf")) {
+      return NextResponse.json({ error: "Only PDF files are supported." }, { status: 400 });
+    }
+
+    // 1. Read file into buffer
+    const arrayBuffer = await resumeFile.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    // 2. Upload to Supabase Storage
     const fileExtension = resumeFile.name.split(".").pop();
     const fileName = `${user.id}/${uuidv4()}.${fileExtension}`;
 
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from("resumes")
       .upload(fileName, resumeFile, { upsert: false });
 
@@ -62,17 +81,11 @@ export async function POST(req: NextRequest) {
 
     const resumeUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/resumes/${fileName}`;
 
-    // 2. Parse the uploaded resume using pdf2json
-    const arrayBuffer = await resumeFile.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    
-    // We await our custom wrapper function here
-    const resumeText = await extractTextFromPDF(buffer); 
+    // 3. Parse resume using Gemini's native PDF multimodal understanding
+    // No PDF parsing library needed — Gemini reads the PDF directly as binary
+    const extractedData = await extractResumeWithGemini(buffer);
 
-    // 3. Extract important details from the resume
-    const extractedData = await extractResumeDetails(resumeText);
-
-    // 4. Save extracted details and resume URL in the database
+    // 4. Save the resume record
     const { data: resumeDbData, error: resumeDbError } = await supabase
       .from("resumes")
       .insert({
@@ -80,7 +93,7 @@ export async function POST(req: NextRequest) {
         file_name: resumeFile.name,
         file_path: fileName,
         file_url: resumeUrl,
-        parsed_data: extractedData,
+        parsed_data: extractedData as any,
       })
       .select()
       .single();
@@ -90,274 +103,218 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Failed to save resume data" }, { status: 500 });
     }
 
-    // 5. Automatically populate the Profile section form
-    const { error: profileUpdateError } = await supabase
-      .from("profiles")
-      .update({
-        full_name: extractedData.fullName,
-        email: extractedData.email,
-        phone: extractedData.phone,
-        location: extractedData.location,
-        summary: extractedData.summary,
-        skills: extractedData.skills,
-        current_company: extractedData.workExperience?.[0]?.company,
-        current_job_title: extractedData.workExperience?.[0]?.jobTitle,
-        projects: extractedData.projects,
-      } as any)
-      .eq("id", user.id);
+    // 5. Selectively update profile — only overwrite fields that were actually found
+    const profilePatch: Record<string, unknown> = {};
 
-    if (profileUpdateError) {
-      console.error("Supabase Profile Update Error:", profileUpdateError);
+    if (extractedData.fullName) profilePatch.full_name = extractedData.fullName;
+    if (extractedData.email) profilePatch.email = extractedData.email;
+    if (extractedData.phone) profilePatch.phone = extractedData.phone;
+    if (extractedData.location) profilePatch.location = extractedData.location;
+    if (extractedData.summary) profilePatch.summary = extractedData.summary;
+    if (extractedData.skills?.length) profilePatch.skills = extractedData.skills;
+    if (extractedData.workExperience?.length) {
+      profilePatch.work_experience = extractedData.workExperience;
+      profilePatch.current_company = extractedData.workExperience[0]?.company;
+      profilePatch.current_job_title = extractedData.workExperience[0]?.jobTitle;
+    }
+    if (extractedData.projects?.length) profilePatch.projects = extractedData.projects;
+    if (extractedData.education?.length) profilePatch.education = extractedData.education;
+    if (extractedData.certifications?.length) profilePatch.certifications = extractedData.certifications;
+    if (extractedData.links?.length) profilePatch.links = extractedData.links;
+
+    if (Object.keys(profilePatch).length > 0) {
+      const { error: profileUpdateError } = await supabase
+        .from("profiles")
+        .update(profilePatch as any)
+        .eq("id", user.id);
+
+      if (profileUpdateError) {
+        console.error("Profile update error (non-fatal):", profileUpdateError);
+      }
     }
 
-    return NextResponse.json({ message: "Resume uploaded and parsed successfully", data: resumeDbData });
-  } catch (error: any) {
-    console.error("Resume processing error:", error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Internal Server Error" }, { status: 500 });
+    const fieldsExtracted = Object.keys(profilePatch);
+    console.log(`Resume parsed. Fields extracted: ${fieldsExtracted.join(", ")}`);
+
+    return NextResponse.json({
+      message: "Resume uploaded and parsed successfully",
+      data: resumeDbData,
+      fieldsExtracted,
+    });
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : "Internal Server Error";
+    console.error("Resume processing error:", msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
-interface ExtractedResumeData {
-  [key: string]: any;
-  fullName: string;
-  email: string;
-  phone: string;
-  location: string;
-  summary: string;
-  skills: string[];
-  workExperience?: Array<{
-    company: string;
-    jobTitle: string;
-    duration?: string;
-    responsibilities?: string[];
-  }>;
-  education?: Array<{
-    school: string;
-    degree?: string;
-    fieldOfStudy?: string;
-    duration?: string;
-  }>;
-  projects?: Array<{
-    title: string;
-    description?: string;
-    technologies?: string[];
-  }>;
-  certifications?: string[];
-  links?: string[];
-}
-
-// Function to extract resume details using Gemini API (if available) or robust fallback heuristics
-async function extractResumeDetails(resumeText: string): Promise<ExtractedResumeData> {
-  let decodedText = "";
-  try {
-    decodedText = decodeURIComponent(resumeText);
-  } catch (e) {
-    decodedText = resumeText;
-  }
-
+// ─── Gemini Multimodal Resume Parser ─────────────────────────────────────────
+// Sends the raw PDF bytes directly to Gemini — no PDF lib needed.
+// Gemini reads the layout, headings, and formatting natively.
+async function extractResumeWithGemini(pdfBuffer: Buffer): Promise<ExtractedResumeData> {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (apiKey) {
-    try {
-      console.log("Using Gemini API to parse resume...");
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  {
-                    text: `You are an expert ATS (Applicant Tracking System) parser. Analyze the following raw text extracted from a resume and extract the key information into a structured JSON format. 
-                    
-Return ONLY a valid JSON object matching the schema below. Do not wrap the response in markdown blocks (like \`\`\`json), do not include any explanatory text or prefix, just return the JSON object itself.
 
-Schema:
+  if (!apiKey) {
+    console.warn("GEMINI_API_KEY not set — returning empty extracted data");
+    return emptyData();
+  }
+
+  const prompt = `You are an expert resume parser. The attached file is a candidate's resume PDF.
+
+Extract ALL information from this resume and return it as a single raw JSON object.
+
+CRITICAL RULES:
+- Return ONLY the JSON object — no markdown fences (\`\`\`), no explanation text, no prefix
+- Extract ACTUAL values from the resume — do NOT invent, guess, or use placeholders
+- If something is not present in the resume, use "" or []
+- fullName: the person's name, usually at the very top in large text
+- skills: list every technology, tool, framework, language, and methodology you see
+- workExperience: all jobs listed, most recent first
+- projects: ALL projects including personal, academic, and side projects
+- links: any URLs (GitHub, LinkedIn, Portfolio, etc.)
+
+Return this exact JSON shape:
 {
-  "fullName": "Full name of the candidate",
-  "email": "Email address",
-  "phone": "Phone number",
-  "location": "City, State/Country",
-  "summary": "Short professional summary",
-  "skills": ["Skill 1", "Skill 2", ...],
+  "fullName": "...",
+  "email": "...",
+  "phone": "...",
+  "location": "City, Country",
+  "summary": "Professional summary in 1-3 sentences",
+  "skills": ["Skill1", "Skill2"],
   "workExperience": [
     {
       "company": "Company Name",
       "jobTitle": "Job Title",
-      "duration": "e.g., June 2021 - Present or 2019-2021",
-      "responsibilities": ["Responsibility 1", "Responsibility 2", ...]
+      "duration": "Month Year – Month Year",
+      "responsibilities": ["did X", "built Y"]
     }
   ],
   "education": [
     {
-      "school": "University/School Name",
-      "degree": "e.g., B.S., M.S., Ph.D.",
-      "fieldOfStudy": "e.g., Computer Science",
-      "duration": "e.g., 2016 - 2020"
+      "school": "University Name",
+      "degree": "B.S. / M.Tech / etc.",
+      "fieldOfStudy": "Computer Science",
+      "duration": "2018 – 2022"
     }
   ],
   "projects": [
     {
-      "title": "Project Title",
-      "description": "Short description of the project",
-      "technologies": ["React", "Node.js", ...]
+      "title": "Project Name",
+      "description": "What it does in 1-2 sentences",
+      "technologies": ["React", "Node.js"]
     }
   ],
-  "certifications": ["Certification name 1", ...],
-  "links": ["Portfolio URL", "GitHub URL", "LinkedIn URL", ...]
+  "certifications": ["AWS Certified Solutions Architect"],
+  "links": ["https://github.com/...", "https://linkedin.com/in/..."]
+}`;
+
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+      model: "gemini-flash-latest",
+      generationConfig: {
+        responseMimeType: "application/json",
+        temperature: 0.1,      // low temperature = factual, deterministic
+        maxOutputTokens: 4096,
+      },
+    });
+
+    // Pass the PDF as raw base64 inline data — Gemini reads it natively
+    const result = await model.generateContent([
+      {
+        inlineData: {
+          mimeType: "application/pdf",
+          data: pdfBuffer.toString("base64"),
+        },
+      },
+      { text: prompt },
+    ]);
+
+    const response = await result.response;
+    let rawText = response.text().trim();
+
+    // Strip any accidental markdown code fences
+    rawText = rawText
+      .replace(/^```json\s*/i, "")
+      .replace(/^```\s*/i, "")
+      .replace(/```\s*$/i, "")
+      .trim();
+
+    console.log("Gemini response preview:", rawText.slice(0, 300));
+
+    const parsed = JSON.parse(rawText);
+    return sanitize(parsed);
+  } catch (err) {
+    console.error("Gemini resume parsing error:", err);
+    // Return empty data so the resume is still saved even if AI parsing fails
+    return emptyData();
+  }
 }
 
-Raw Resume Text:
-${decodedText}`,
-                  },
-                ],
-              },
-            ],
-            generationConfig: {
-              responseMimeType: "application/json",
-            },
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Gemini API responded with status ${response.status}`);
-      }
-
-      const responseData = await response.json();
-      const rawJsonText = responseData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-      
-      if (rawJsonText) {
-        const cleanJsonText = rawJsonText.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
-        const parsed = JSON.parse(cleanJsonText);
-        return {
-          fullName: parsed.fullName || "",
-          email: parsed.email || "",
-          phone: parsed.phone || "",
-          location: parsed.location || "",
-          summary: parsed.summary || "",
-          skills: Array.isArray(parsed.skills) ? parsed.skills : [],
-          workExperience: Array.isArray(parsed.workExperience) ? parsed.workExperience : [],
-          education: Array.isArray(parsed.education) ? parsed.education : [],
-          projects: Array.isArray(parsed.projects) ? parsed.projects : [],
-          certifications: Array.isArray(parsed.certifications) ? parsed.certifications : [],
-          links: Array.isArray(parsed.links) ? parsed.links : [],
-        };
-      }
-    } catch (apiError) {
-      console.error("Gemini API resume parsing error, falling back to heuristics:", apiError);
-    }
-  } else {
-    console.log("GEMINI_API_KEY is not defined. Using fallback heuristic parser.");
-  }
-
-  // Fallback heuristic extraction
-  return extractResumeDetailsFallback(decodedText);
-}
-
-// Fallback regex/heuristic-based extractor
-function extractResumeDetailsFallback(text: string): ExtractedResumeData {
-  const emailMatch = text.match(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/i);
-  const phoneMatch = text.match(/\b(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/);
-  
-  // Extract Name (heuristics: look at the top lines for capitalized letter sequences)
-  const lines = text.split(/[\r\n]+/).map(l => l.trim()).filter(l => l.length > 0);
-  let fullName = "";
-  if (lines.length > 0) {
-    for (let i = 0; i < Math.min(5, lines.length); i++) {
-      const line = lines[i];
-      if (
-        !line.includes("@") &&
-        !line.includes("http") &&
-        !/^[0-9]/.test(line) &&
-        line.split(/\s+/).length >= 2 &&
-        line.split(/\s+/).length <= 4 &&
-        /^[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+/.test(line)
-      ) {
-        fullName = line;
-        break;
-      }
-    }
-  }
-  
-  if (!fullName && lines.length > 0) {
-    fullName = lines[0]; // fallback to first line
-  }
-
-  // Extract skills by searching for common keywords
-  const commonSkills = [
-    "JavaScript", "TypeScript", "React", "Next.js", "Vue", "Angular", "HTML", "CSS", "Tailwind",
-    "Node.js", "Express", "Python", "Django", "Flask", "Java", "Spring", "C++", "C#", "Go", "Rust",
-    "SQL", "PostgreSQL", "MySQL", "MongoDB", "Redis", "Supabase", "Firebase", "AWS", "Docker", "Git"
-  ];
-  const skills: string[] = [];
-  commonSkills.forEach(skill => {
-    const escapedSkill = skill.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    
-    // For skills with special characters (like C++, C#), don't use strict word boundaries \b
-    // because \b only matches between a word character (\w) and a non-word character (\W).
-    let regex;
-    if (/[^a-zA-Z0-9]/.test(skill)) {
-      regex = new RegExp(escapedSkill, "i");
-    } else {
-      regex = new RegExp(`\\b${escapedSkill}\\b`, "i");
-    }
-    
-    if (regex.test(text)) {
-      skills.push(skill);
-    }
-  });
-
-  // Extract location (city, state/country regex)
-  const locationMatch = text.match(/\b([A-Z][a-zA-Z\s.]+),\s([A-Z]{2}|[A-Z][a-zA-Z\s]+)\b/);
-  const location = locationMatch ? locationMatch[0] : "";
-
-  // Summary extraction
-  let summary = "Highly motivated professional.";
-  const summaryIndex = text.search(/summary|objective|profile/i);
-  if (summaryIndex !== -1) {
-    const textAfter = text.substring(summaryIndex).split(/[\r\n]+/).slice(1, 5).join(" ").trim();
-    if (textAfter.length > 20) {
-      summary = textAfter.substring(0, 300);
-    }
-  }
-
-  // Work experience fallback guess
-  const workExperience: Array<{ company: string; jobTitle: string; duration?: string; responsibilities?: string[] }> = [];
-  
-  // Try to find job title candidates
-  const jobTitleRegex = /(?:Software Engineer|Developer|Manager|Analyst|Consultant|Designer|Intern|Specialist|Coordinator)/i;
-  const matchJob = text.match(jobTitleRegex);
-  if (matchJob) {
-    workExperience.push({
-      company: "Company from Resume",
-      jobTitle: matchJob[0],
-      duration: "Duration from Resume",
-      responsibilities: ["Extracted from resume fallback parser."]
-    });
-  } else {
-    workExperience.push({
-      company: "Company",
-      jobTitle: "Professional",
-      duration: "",
-      responsibilities: []
-    });
-  }
-
+// ─── Sanitize + type-safe output ─────────────────────────────────────────────
+function sanitize(parsed: Record<string, unknown>): ExtractedResumeData {
   return {
-    fullName: fullName || "Extracted Candidate",
-    email: emailMatch ? emailMatch[0] : "",
-    phone: phoneMatch ? phoneMatch[0] : "",
-    location: location,
-    summary: summary,
-    skills: skills.length > 0 ? skills : ["React", "JavaScript", "TypeScript"],
-    workExperience,
+    fullName: str(parsed.fullName),
+    email: str(parsed.email),
+    phone: str(parsed.phone),
+    location: str(parsed.location),
+    summary: str(parsed.summary).slice(0, 600),
+    skills: strArr(parsed.skills),
+    workExperience: Array.isArray(parsed.workExperience)
+      ? (parsed.workExperience as any[])
+          .map((w) => ({
+            company: str(w.company),
+            jobTitle: str(w.jobTitle),
+            duration: str(w.duration),
+            responsibilities: strArr(w.responsibilities),
+          }))
+          .filter((w) => w.company || w.jobTitle)
+      : [],
+    education: Array.isArray(parsed.education)
+      ? (parsed.education as any[])
+          .map((e) => ({
+            school: str(e.school),
+            degree: str(e.degree),
+            fieldOfStudy: str(e.fieldOfStudy),
+            duration: str(e.duration),
+          }))
+          .filter((e) => e.school)
+      : [],
+    projects: Array.isArray(parsed.projects)
+      ? (parsed.projects as any[])
+          .map((p) => ({
+            title: str(p.title),
+            description: str(p.description),
+            technologies: strArr(p.technologies),
+          }))
+          .filter((p) => p.title)
+      : [],
+    certifications: strArr(parsed.certifications),
+    links: strArr(parsed.links).filter((l) => l.startsWith("http")),
+  };
+}
+
+function str(v: unknown): string {
+  return typeof v === "string" ? v.trim() : "";
+}
+
+function strArr(v: unknown): string[] {
+  if (!Array.isArray(v)) return [];
+  return v.filter(Boolean).map((x) => String(x).trim());
+}
+
+function emptyData(): ExtractedResumeData {
+  return {
+    fullName: "",
+    email: "",
+    phone: "",
+    location: "",
+    summary: "",
+    skills: [],
+    workExperience: [],
     education: [],
     projects: [],
     certifications: [],
-    links: []
+    links: [],
   };
 }
