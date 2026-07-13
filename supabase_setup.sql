@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     skills TEXT[],
     current_company TEXT,
     current_job_title TEXT,
+    projects JSONB,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -40,6 +41,7 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS summary TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS skills TEXT[];
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS current_company TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS current_job_title TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS projects JSONB;
 
 -- B. Job Applications Table
 CREATE TABLE IF NOT EXISTS public.job_applications (
