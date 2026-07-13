@@ -68,16 +68,6 @@ export type Database = {
           skills: string[] | null // Added skills array
           current_company: string | null // Added current company
           current_job_title: string | null // Added current job title
-          stripe_customer_id: string | null
-          stripe_subscription_id: string | null
-          subscription_status: string | null
-          plan_name: string | null
-          plan_limit: number | null
-          daily_usage_count: number | null
-          last_usage_date: string | null
-          current_period_start: string | null
-          current_period_end: string | null
-          payment_status: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -92,16 +82,6 @@ export type Database = {
           skills?: string[] | null
           current_company?: string | null
           current_job_title?: string | null
-          stripe_customer_id?: string | null
-          stripe_subscription_id?: string | null
-          subscription_status?: string | null
-          plan_name?: string | null
-          plan_limit?: number | null
-          daily_usage_count?: number | null
-          last_usage_date?: string | null
-          current_period_start?: string | null
-          current_period_end?: string | null
-          payment_status?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -116,16 +96,6 @@ export type Database = {
           skills?: string[] | null
           current_company?: string | null
           current_job_title?: string | null
-          stripe_customer_id?: string | null
-          stripe_subscription_id?: string | null
-          subscription_status?: string | null
-          plan_name?: string | null
-          plan_limit?: number | null
-          daily_usage_count?: number | null
-          last_usage_date?: string | null
-          current_period_start?: string | null
-          current_period_end?: string | null
-          payment_status?: string | null
         }
         Relationships: []
       }

@@ -19,7 +19,6 @@ import { Button } from "@/components/ui/button";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   BriefcaseIcon,
-  BookmarkIcon,
   File01Icon,
   UserIcon,
   ClipboardCheckIcon,
@@ -28,7 +27,6 @@ import {
   SparklesIcon,
 } from "@hugeicons/core-free-icons";
 import { cn } from "@/lib/utils";
-import OnboardingDialog from "@/components/OnboardingDialog";
 
 export default function DashboardLayout({
   children,
@@ -45,7 +43,6 @@ export default function DashboardLayout({
         </div>
         {children}
       </main>
-      <OnboardingDialog />
     </SidebarProvider>
   );
 }
@@ -56,15 +53,13 @@ function AppSidebar() {
 
   const navItems = [
     { title: "Jobs", icon: BriefcaseIcon, href: "/dashboard" },
-    { title: "Saved Jobs", icon: BookmarkIcon, href: "/dashboard/saved" },
     { title: "Resume", icon: File01Icon, href: "/dashboard/resume" },
     { title: "Profile", icon: UserIcon, href: "/dashboard/profile" },
-    {
-      title: "Status",
-      icon: ClipboardCheckIcon,
-      href: "/dashboard/status",
-    },
-    { title: "Billing", icon: CreditCardIcon, href: "/dashboard/billing" },
+    // { // Removed for brevity, if needed in future, add back
+    //   title: "Application Status",
+    //   icon: ClipboardCheckIcon,
+    //   href: "/dashboard/status",
+    // },
   ];
 
   return (

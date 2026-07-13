@@ -21,10 +21,6 @@ export async function POST(req: NextRequest) {
       current_company,
       current_job_title,
       projects,
-      work_experience,
-      education,
-      certifications,
-      links,
     } = body;
 
     const { error } = await supabase
@@ -39,10 +35,6 @@ export async function POST(req: NextRequest) {
         current_company,
         current_job_title,
         projects,
-        work_experience,
-        education,
-        certifications,
-        links,
         updated_at: new Date().toISOString(),
       } as any)
       .eq("id", user.id);

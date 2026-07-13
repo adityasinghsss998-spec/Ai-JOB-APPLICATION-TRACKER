@@ -53,10 +53,6 @@ export async function POST(req: NextRequest) {
         current_company: null,
         current_job_title: null,
         projects: null,
-        work_experience: null,
-        education: null,
-        certifications: null,
-        links: null,
       } as any)
       .eq("id", user.id);
 
