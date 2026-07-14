@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     const planLimit = PLAN_LIMITS[plan as keyof typeof PLAN_LIMITS] ?? PLAN_LIMITS.Free;
 
     // Atomically increment usage count with plan limit check
-    const { data: incrementResult, error: rpcError } = await supabase
+    const { data: incrementResult, error: rpcError } = await (supabase as any)
       .rpc("increment_daily_usage", {
         p_user_id: user.id,
         p_plan_limit: planLimit,
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
 
     // Check if limit was reached
     if (!incrementResult) {
-      const limitValue = planLimit === -1 ? "unlimited" : planLimit;
+      const limitValue = (planLimit as number) === -1 ? "unlimited" : planLimit;
       return NextResponse.json({
         error: `Daily limit reached. ${plan} users are limited to ${limitValue} AI applications per day. ${plan === "Free" ? "Please upgrade your subscription tier." : plan === "Pro" ? "Upgrade to Unlimited for unrestricted usage." : ""}`,
         limitReached: true,

@@ -647,55 +647,55 @@ export default function JobsDashboard({ profile, initialActivities, mode = "all"
           
           {/* Welcome Banner */}
           {mode === "saved" ? (
-            <div className="rounded-2xl border border-muted bg-gradient-to-br from-card to-muted/20 p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 overflow-hidden relative">
+            <div className="rounded-3xl border border-indigo-500/20 bg-gradient-to-br from-indigo-950/40 via-card/70 to-background backdrop-blur-2xl p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 overflow-hidden relative shadow-xl shadow-indigo-500/5">
               <div className="space-y-2 relative z-10">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/20 px-3 py-1 text-xs font-semibold text-primary">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 px-3 py-1 text-xs font-semibold text-indigo-400">
                   <HugeiconsIcon icon={SparklesIcon} size={14} className="animate-pulse" />
-                  Your Saved Positions
+                  Bookmarked Positions
                 </span>
-                <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
-                  Saved Jobs
+                <h1 className="text-3xl font-black tracking-tight text-foreground sm:text-4xl">
+                  Saved Job Listings
                 </h1>
-                <p className="text-sm sm:text-base text-muted-foreground max-w-xl">
-                  Manage, track, and apply to your bookmarked positions using the background AI recruiter.
+                <p className="text-xs sm:text-sm text-muted-foreground max-w-xl leading-relaxed">
+                  Manage, monitor, and execute Stagehand browser auto-apply on your bookmarked listings.
                 </p>
               </div>
               <div className="shrink-0 relative z-10">
-                <Button onClick={() => fetchJobs([], false)} disabled={isLoading} className="w-full md:w-auto flex items-center gap-2">
+                <Button onClick={() => fetchJobs([], false)} disabled={isLoading} className="w-full md:w-auto flex items-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-bold text-xs shadow-lg shadow-indigo-500/25">
                   <HugeiconsIcon icon={SearchIcon} size={16} />
                   {isLoading ? "Refreshing..." : "Refresh Saved"}
                 </Button>
               </div>
-              <div className="absolute right-0 top-0 h-48 w-48 rounded-full bg-primary/5 blur-3xl -translate-y-12 translate-x-12" />
+              <div className="absolute right-0 top-0 h-48 w-48 rounded-full bg-indigo-500/10 blur-3xl -translate-y-12 translate-x-12 pointer-events-none" />
             </div>
           ) : (
-            <div className="rounded-2xl border border-muted bg-gradient-to-br from-card to-muted/20 p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 overflow-hidden relative">
+            <div className="rounded-3xl border border-indigo-500/20 bg-gradient-to-br from-indigo-950/40 via-card/70 to-background backdrop-blur-2xl p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 overflow-hidden relative shadow-xl shadow-indigo-500/5">
               <div className="space-y-2 relative z-10">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/20 px-3 py-1 text-xs font-semibold text-primary">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 px-3 py-1 text-xs font-semibold text-indigo-400">
                   <HugeiconsIcon icon={SparklesIcon} size={14} className="animate-pulse" />
-                  AI Recruiter Active
+                  AI Autonomous Recruiter Active
                 </span>
-                <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
-                  Find Your Next Role, {displayName.split(" ")[0]}!
+                <h1 className="text-3xl font-black tracking-tight text-foreground sm:text-4xl">
+                  Welcome back, <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-300 to-cyan-400">{displayName.split(" ")[0]}</span>!
                 </h1>
-                <p className="text-sm sm:text-base text-muted-foreground max-w-xl">
-                  We've analyzed your resume profile and are searching top platforms in real-time to match jobs to your technical stack.
+                <p className="text-xs sm:text-sm text-muted-foreground max-w-xl leading-relaxed">
+                  We've parsed your candidate skills to search top hiring platforms and auto-match relevant positions.
                 </p>
               </div>
               <div className="shrink-0 relative z-10">
-                <Button onClick={() => fetchJobs(selectedPlatforms, false)} disabled={isLoading} className="w-full md:w-auto flex items-center gap-2">
+                <Button onClick={() => fetchJobs(selectedPlatforms, false)} disabled={isLoading} className="w-full md:w-auto flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-500 hover:from-indigo-500 hover:to-cyan-400 text-white font-bold text-xs shadow-lg shadow-indigo-500/25">
                   <HugeiconsIcon icon={SearchIcon} size={16} />
-                  {isLoading ? "Searching..." : "Search Jobs"}
+                  {isLoading ? "Searching..." : "Search Job Boards"}
                 </Button>
               </div>
-              <div className="absolute right-0 top-0 h-48 w-48 rounded-full bg-primary/5 blur-3xl -translate-y-12 translate-x-12" />
+              <div className="absolute right-0 top-0 h-48 w-48 rounded-full bg-cyan-500/10 blur-3xl -translate-y-12 translate-x-12 pointer-events-none" />
             </div>
           )}
 
-          {/* Selectable Platform Cards - Only show in search mode */}
+          {/* Selectable Platform Cards */}
           {mode === "all" && (
             <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Target Job Boards</h3>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Target Job Boards</h3>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {PLATFORMS.map((platform) => {
                   const isSelected = selectedPlatforms.includes(platform.id);
@@ -703,24 +703,24 @@ export default function JobsDashboard({ profile, initialActivities, mode = "all"
                     <div
                       key={platform.id}
                       onClick={() => togglePlatform(platform.id)}
-                      className={`relative cursor-pointer select-none rounded-xl border p-4 text-center transition-all ${
+                      className={`relative cursor-pointer select-none rounded-2xl border p-4 text-center transition-all duration-300 ${
                         isSelected
-                          ? `${platform.color} border-current ring-1 ring-current`
-                          : "border-border hover:border-muted-foreground/30 bg-card"
+                          ? `${platform.color} border-indigo-500/50 bg-indigo-500/10 ring-1 ring-indigo-500/40 shadow-md shadow-indigo-500/10 scale-[1.02]`
+                          : "border-border/50 hover:border-border bg-card/40 hover:bg-card/70 text-muted-foreground"
                       }`}
                     >
                       <div className="flex flex-col items-center justify-center gap-2">
-                        <div className="h-10 w-24 flex items-center justify-center bg-white/95 rounded-md p-1.5 shadow-sm border border-muted/30 shrink-0 select-none">
+                        <div className="h-10 w-24 flex items-center justify-center bg-white/95 rounded-xl p-1.5 shadow-sm border border-muted/30 shrink-0 select-none">
                           <img
                             src={platform.logo}
                             alt={platform.name}
                             className="h-full w-full object-contain"
                           />
                         </div>
-                        <span className="text-xs font-bold tracking-tight">{platform.name}</span>
+                        <span className="text-xs font-bold tracking-tight text-foreground">{platform.name}</span>
                         <div className="flex items-center gap-1.5">
-                          <div className={`h-2 w-2 rounded-full ${isSelected ? "bg-current" : "bg-muted-foreground/30"}`} />
-                          <span className="text-[9px] uppercase font-semibold text-muted-foreground/80">
+                          <div className={`h-2 w-2 rounded-full ${isSelected ? "bg-cyan-400 animate-pulse" : "bg-muted-foreground/30"}`} />
+                          <span className="text-[9px] uppercase font-bold tracking-wider text-muted-foreground">
                             {isSelected ? "Active" : "Disabled"}
                           </span>
                         </div>

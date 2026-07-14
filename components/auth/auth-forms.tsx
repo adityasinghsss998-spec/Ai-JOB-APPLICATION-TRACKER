@@ -47,22 +47,22 @@ function SignInForm() {
       <form action={formAction} className="space-y-4">
         <input type="hidden" name="redirect" value={redirectTo} />
 
-        <FieldGroup>
+        <FieldGroup className="space-y-4">
           <Field>
-            <FieldLabel htmlFor="email">Email</FieldLabel>
+            <FieldLabel htmlFor="email" className="text-xs font-semibold">Email address</FieldLabel>
             <Input
               id="email"
               name="email"
               type="email"
-              placeholder="you@example.com"
+              placeholder="you@domain.com"
               autoComplete="email"
               required
-              className="h-10"
+              className="h-11 rounded-xl bg-background/50 border-border/60 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-sm transition-all"
             />
           </Field>
 
           <Field>
-            <FieldLabel htmlFor="password">Password</FieldLabel>
+            <FieldLabel htmlFor="password" className="text-xs font-semibold">Password</FieldLabel>
             <Input
               id="password"
               name="password"
@@ -70,31 +70,29 @@ function SignInForm() {
               placeholder="••••••••"
               autoComplete="current-password"
               required
-              className="h-10"
+              className="h-11 rounded-xl bg-background/50 border-border/60 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-sm transition-all"
             />
           </Field>
         </FieldGroup>
 
         {(state.error || authError) && (
-          <FieldError>
-            {state.error ??
-              "Authentication failed. Please try again."}
+          <FieldError className="text-xs p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 font-medium">
+            {state.error ?? "Authentication failed. Please check your credentials and try again."}
           </FieldError>
         )}
 
         <Button
           type="submit"
-          size="lg"
-          className="h-10 w-full text-sm"
+          className="h-11 w-full text-xs font-bold rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-cyan-500 hover:from-indigo-500 hover:to-cyan-400 text-white shadow-lg shadow-indigo-500/25 transition-all duration-300 hover:scale-[1.01] active:scale-95"
           disabled={pending}
         >
-          {pending ? "Signing in..." : "Sign in"}
+          {pending ? "Signing in..." : "Sign in to Dashboard"}
         </Button>
       </form>
 
       <AuthFooterLink
         text="Don't have an account?"
-        linkText="Sign up"
+        linkText="Create free account"
         href="/sign-up"
       />
     </AuthLayout>
@@ -110,41 +108,41 @@ function SignUpForm() {
   return (
     <AuthLayout
       title="Create an account"
-      subtitle="Start tracking your job applications in minutes."
+      subtitle="Start tracking applications and running AI auto-apply in minutes."
     >
       <GoogleSignInButton />
 
       <AuthDivider />
 
       <form action={formAction} className="space-y-4">
-        <FieldGroup>
+        <FieldGroup className="space-y-4">
           <Field>
-            <FieldLabel htmlFor="fullName">Full name</FieldLabel>
+            <FieldLabel htmlFor="fullName" className="text-xs font-semibold">Full name</FieldLabel>
             <Input
               id="fullName"
               name="fullName"
               type="text"
               placeholder="Jane Doe"
               autoComplete="name"
-              className="h-10"
+              className="h-11 rounded-xl bg-background/50 border-border/60 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-sm transition-all"
             />
           </Field>
 
           <Field>
-            <FieldLabel htmlFor="email">Email</FieldLabel>
+            <FieldLabel htmlFor="email" className="text-xs font-semibold">Email address</FieldLabel>
             <Input
               id="email"
               name="email"
               type="email"
-              placeholder="you@example.com"
+              placeholder="you@domain.com"
               autoComplete="email"
               required
-              className="h-10"
+              className="h-11 rounded-xl bg-background/50 border-border/60 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-sm transition-all"
             />
           </Field>
 
           <Field>
-            <FieldLabel htmlFor="password">Password</FieldLabel>
+            <FieldLabel htmlFor="password" className="text-xs font-semibold">Password</FieldLabel>
             <Input
               id="password"
               name="password"
@@ -153,22 +151,25 @@ function SignUpForm() {
               autoComplete="new-password"
               required
               minLength={6}
-              className="h-10"
+              className="h-11 rounded-xl bg-background/50 border-border/60 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-sm transition-all"
             />
           </Field>
         </FieldGroup>
 
-        {state.error && <FieldError>{state.error}</FieldError>}
+        {state.error && (
+          <FieldError className="text-xs p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 font-medium">
+            {state.error}
+          </FieldError>
+        )}
         {state.success && (
-          <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-600 dark:text-emerald-400">
+          <p className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 text-xs font-semibold text-emerald-400">
             {state.success}
           </p>
         )}
 
         <Button
           type="submit"
-          size="lg"
-          className="h-10 w-full text-sm"
+          className="h-11 w-full text-xs font-bold rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-cyan-500 hover:from-indigo-500 hover:to-cyan-400 text-white shadow-lg shadow-indigo-500/25 transition-all duration-300 hover:scale-[1.01] active:scale-95"
           disabled={pending}
         >
           {pending ? "Creating account..." : "Create account"}
@@ -178,10 +179,11 @@ function SignUpForm() {
       <AuthFooterLink
         text="Already have an account?"
         linkText="Sign in"
-        href="/sign-in"
+        href="/sign-up"
       />
     </AuthLayout>
   )
 }
 
 export { SignInForm, SignUpForm }
+

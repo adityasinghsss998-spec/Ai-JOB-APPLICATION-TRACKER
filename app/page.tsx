@@ -1,9 +1,14 @@
-import Link from "next/link"
 import { redirect } from "next/navigation"
-
 import { createClient } from "@/lib/supabase/server"
-import { buttonVariants } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
+
+import { LandingNav } from "@/components/landing/LandingNav"
+import { HeroSection } from "@/components/landing/HeroSection"
+import { LiveAutomationDemo } from "@/components/landing/LiveAutomationDemo"
+import { FeaturesSection } from "@/components/landing/FeaturesSection"
+import { WorkflowSection } from "@/components/landing/WorkflowSection"
+import { StatsSection } from "@/components/landing/StatsSection"
+import { CTASection } from "@/components/landing/CTASection"
+import { LandingFooter } from "@/components/landing/LandingFooter"
 
 export default async function Home() {
   const supabase = await createClient()
@@ -16,42 +21,33 @@ export default async function Home() {
   }
 
   return (
-    <div className="relative flex min-h-full flex-col items-center justify-center overflow-hidden px-6">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-100/50 via-background to-background dark:from-indigo-950/30" />
+    <div className="relative min-h-screen bg-background text-foreground overflow-x-hidden selection:bg-indigo-500/30 selection:text-indigo-200">
+      {/* Dynamic Header Navbar */}
+      <LandingNav />
 
-      <main className="relative z-10 mx-auto flex max-w-2xl flex-col items-center gap-8 text-center">
-        <div className="flex size-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg">
-          <span className="text-lg font-bold">JA</span>
-        </div>
+      {/* Hero Section with 3D Canvas Background & 3D Tilt Card */}
+      <HeroSection />
 
-        <div className="space-y-4">
-          <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
-            Track your job search with clarity
-          </h1>
-          <p className="text-lg text-muted-foreground">
-            Organize applications, monitor progress, and stay focused on landing
-            your next role.
-          </p>
-        </div>
+      {/* Live AI Automation Demo Section */}
+      <section id="demo" className="py-20 px-6 max-w-7xl mx-auto">
+        <LiveAutomationDemo />
+      </section>
 
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <Link
-            href="/sign-up"
-            className={cn(buttonVariants({ size: "lg" }), "h-11 px-8 text-sm")}
-          >
-            Get started free
-          </Link>
-          <Link
-            href="/sign-in"
-            className={cn(
-              buttonVariants({ variant: "outline", size: "lg" }),
-              "h-11 px-8 text-sm"
-            )}
-          >
-            Sign in
-          </Link>
-        </div>
-      </main>
+      {/* Holographic 3D Feature Grid */}
+      <FeaturesSection />
+
+      {/* How it Works / 3-Step Workflow */}
+      <WorkflowSection />
+
+      {/* Impact & Performance Metrics */}
+      <StatsSection />
+
+      {/* High-Impact Conversion CTA */}
+      <CTASection />
+
+      {/* Footer */}
+      <LandingFooter />
     </div>
   )
 }
+

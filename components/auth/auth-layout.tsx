@@ -1,5 +1,9 @@
-import Link from "next/link"
+"use client"
 
+import React from "react"
+import Link from "next/link"
+import { motion } from "framer-motion"
+import { Bot, Sparkles, CheckCircle2, ShieldCheck, ArrowLeft } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export function AuthLayout({
@@ -12,86 +16,146 @@ export function AuthLayout({
   subtitle: string
 }) {
   return (
-    <div className="grid min-h-full lg:grid-cols-2">
-      <div className="relative hidden overflow-hidden bg-zinc-950 lg:flex lg:flex-col lg:justify-between lg:p-12">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-indigo-900/40 via-zinc-950 to-zinc-950" />
-        <div className="absolute -right-24 -top-24 size-96 rounded-full bg-indigo-500/10 blur-3xl" />
-        <div className="absolute -bottom-32 -left-32 size-96 rounded-full bg-violet-500/10 blur-3xl" />
+    <div className="grid min-h-screen lg:grid-cols-12 bg-background text-foreground overflow-hidden selection:bg-indigo-500/30">
+      {/* Left Column: Ambient 3D Aesthetic Showcase */}
+      <div className="relative hidden lg:flex lg:col-span-6 xl:col-span-7 flex-col justify-between p-12 bg-slate-950 overflow-hidden">
+        {/* Glow Effects */}
+        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_20%_20%,_var(--tw-gradient-stops))] from-indigo-900/40 via-slate-950 to-slate-950 pointer-events-none" />
+        <div className="absolute -top-32 -left-32 size-96 rounded-full bg-indigo-600/20 blur-[130px] pointer-events-none" />
+        <div className="absolute bottom-10 right-10 size-96 rounded-full bg-cyan-500/15 blur-[130px] pointer-events-none" />
 
-        <div className="relative">
-          <Link href="/" className="inline-flex items-center gap-2">
-            <div className="flex size-9 items-center justify-center rounded-lg bg-white/10 ring-1 ring-white/20">
-              <span className="text-sm font-semibold text-white">JA</span>
+        {/* Ambient Grid overlay */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b15_1px,transparent_1px),linear-gradient(to_bottom,#1e293b15_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none" />
+
+        {/* Top Branding */}
+        <div className="relative z-10">
+          <Link href="/" className="inline-flex items-center gap-3 group">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-600 to-cyan-400 p-0.5 shadow-lg shadow-indigo-500/30 group-hover:scale-105 transition-transform">
+              <div className="flex size-full items-center justify-center rounded-[10px] bg-slate-950">
+                <Bot className="size-5 text-indigo-400" />
+              </div>
             </div>
-            <span className="text-sm font-medium text-white/90">
-              Job Application Tracker
-            </span>
+            <div className="flex flex-col">
+              <span className="font-bold text-lg tracking-tight text-white">
+                ApplyAgent<span className="text-indigo-400">.ai</span>
+              </span>
+              <span className="text-[10px] text-slate-400 font-medium tracking-wider uppercase">
+                Autonomous Search
+              </span>
+            </div>
           </Link>
         </div>
 
-        <div className="relative space-y-6">
-          <blockquote className="space-y-2">
-            <p className="text-2xl font-medium leading-snug tracking-tight text-white">
-              Track every application. Land your dream role.
-            </p>
-            <p className="text-sm leading-relaxed text-zinc-400">
-              Organize applications, monitor progress, and stay on top of your
-              job search — all in one place.
-            </p>
-          </blockquote>
+        {/* Center Testimonial / Live Glass Showcase */}
+        <div className="relative z-10 max-w-lg space-y-8 my-auto py-12">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold"
+          >
+            <Sparkles className="size-3.5 text-cyan-400 animate-pulse" />
+            <span>AI Autonomous Application Engine</span>
+          </motion.div>
 
-          <div className="flex gap-6 text-xs text-zinc-500">
-            <div>
-              <p className="text-lg font-semibold text-white">AI-powered</p>
-              <p>Smart insights</p>
+          <motion.blockquote
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+            className="space-y-4"
+          >
+            <p className="text-3xl font-extrabold tracking-tight leading-snug text-white">
+              “ApplyAgent auto-applied to 40+ engineering roles with tailored resumes — I landed 6 interview invites in 2 weeks.”
+            </p>
+            <footer className="text-sm font-medium text-slate-400">
+              — Alex Rivera, Staff Software Architect
+            </footer>
+          </motion.blockquote>
+
+          {/* Metric Badges */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="grid grid-cols-3 gap-4 pt-4 border-t border-slate-800/80"
+          >
+            <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800 backdrop-blur-md">
+              <p className="text-xl font-bold text-indigo-400">98.4%</p>
+              <p className="text-[11px] text-slate-400 font-medium">ATS Match Fit</p>
             </div>
-            <div>
-              <p className="text-lg font-semibold text-white">Real-time</p>
-              <p>Status tracking</p>
+            <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800 backdrop-blur-md">
+              <p className="text-xl font-bold text-cyan-400">100s</p>
+              <p className="text-[11px] text-slate-400 font-medium">Stagehand Applications</p>
             </div>
-            <div>
-              <p className="text-lg font-semibold text-white">Secure</p>
-              <p>Your data, protected</p>
+            <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800 backdrop-blur-md">
+              <p className="text-xl font-bold text-emerald-400">Real-time</p>
+              <p className="text-[11px] text-slate-400 font-medium">Pipeline Tracking</p>
             </div>
-          </div>
+          </motion.div>
         </div>
 
-        <p className="relative text-xs text-zinc-600">
-          &copy; {new Date().getFullYear()} Job Application Tracker
-        </p>
+        {/* Footer info */}
+        <div className="relative z-10 flex items-center justify-between text-xs text-slate-500 font-medium">
+          <p>© {new Date().getFullYear()} ApplyAgent.ai. All rights reserved.</p>
+          <span className="flex items-center gap-1">
+            <ShieldCheck className="size-4 text-emerald-400" /> AES-256 Encrypted
+          </span>
+        </div>
       </div>
 
-      <div className="flex flex-col items-center justify-center px-6 py-12 sm:px-12">
-        <div className="mb-8 flex w-full max-w-sm items-center justify-between lg:hidden">
-          <Link href="/" className="inline-flex items-center gap-2">
-            <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <span className="text-xs font-semibold">JA</span>
-            </div>
-            <span className="text-sm font-medium">Job Application Tracker</span>
+      {/* Right Column: Form Container */}
+      <div className="lg:col-span-6 xl:col-span-5 flex flex-col justify-between p-6 sm:p-12 relative">
+        {/* Top Navigation Link */}
+        <div className="flex items-center justify-between">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors p-2 rounded-xl hover:bg-muted/50"
+          >
+            <ArrowLeft className="size-4" />
+            <span>Back to Home</span>
           </Link>
-        </div>
-
-        <div className="w-full max-w-sm space-y-8">
-          <div className="space-y-2 text-center lg:text-left">
-            <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-            <p className="text-sm text-muted-foreground">{subtitle}</p>
+          <div className="lg:hidden flex items-center gap-2">
+            <div className="flex size-7 items-center justify-center rounded-lg bg-indigo-600 text-white font-bold text-xs">
+              AA
+            </div>
+            <span className="font-bold text-sm tracking-tight">ApplyAgent.ai</span>
           </div>
-
-          {children}
         </div>
+
+        {/* Main Glass Form Box */}
+        <div className="w-full max-w-md mx-auto my-auto py-8">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5 }}
+            className="rounded-3xl border border-indigo-500/20 bg-card/60 backdrop-blur-2xl p-8 shadow-2xl shadow-indigo-500/5 space-y-6"
+          >
+            <div className="space-y-2 text-left">
+              <h1 className="text-2xl font-extrabold tracking-tight text-foreground">{title}</h1>
+              <p className="text-xs text-muted-foreground leading-relaxed">{subtitle}</p>
+            </div>
+
+            {children}
+          </motion.div>
+        </div>
+
+        {/* Footer privacy text */}
+        <p className="text-center text-[11px] text-muted-foreground">
+          By signing in, you agree to our Terms of Service & Privacy Policy.
+        </p>
       </div>
     </div>
   )
 }
 
-export function AuthDivider({ label = "or" }: { label?: string }) {
+export function AuthDivider({ label = "or continue with" }: { label?: string }) {
   return (
-    <div className="relative">
+    <div className="relative my-6">
       <div className="absolute inset-0 flex items-center">
-        <span className="w-full border-t" />
+        <span className="w-full border-t border-border/60" />
       </div>
-      <div className="relative flex justify-center text-xs uppercase">
-        <span className="bg-background px-2 text-muted-foreground">{label}</span>
+      <div className="relative flex justify-center text-[11px] font-medium uppercase tracking-wider">
+        <span className="bg-card px-3 text-muted-foreground">{label}</span>
       </div>
     </div>
   )
@@ -107,13 +171,11 @@ export function AuthFooterLink({
   href: string
 }) {
   return (
-    <p className="text-center text-sm text-muted-foreground">
+    <p className="text-center text-xs text-muted-foreground pt-2">
       {text}{" "}
       <Link
         href={href}
-        className={cn(
-          "font-medium text-foreground underline-offset-4 hover:underline"
-        )}
+        className="font-bold text-indigo-500 hover:text-indigo-400 underline-offset-4 hover:underline transition-colors"
       >
         {linkText}
       </Link>
