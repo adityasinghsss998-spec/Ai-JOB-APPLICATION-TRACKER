@@ -35,14 +35,50 @@ export async function POST(req: NextRequest) {
     const planLimit = PLAN_LIMITS[plan as keyof typeof PLAN_LIMITS] ?? PLAN_LIMITS.Free;
 
     // Atomically increment usage count with plan limit check
-    const { data: incrementResult, error: rpcError } = await supabase
+    let incrementResult = null;
+    let rpcError = null;
+
+    const rpcRes = await (supabase as any)
       .rpc("increment_daily_usage", {
         p_user_id: user.id,
         p_plan_limit: planLimit,
       });
+    
+    incrementResult = rpcRes.data;
+    rpcError = rpcRes.error;
+
+    // Fallback: If RPC function does not exist in Supabase database, perform manual check & increment
+    if (rpcError && rpcError.code === "PGRST202") {
+      console.warn("increment_daily_usage RPC not found, falling back to manual validation.");
+      
+      const todayStr = new Date().toISOString().split("T")[0];
+      const currentUsage = profile.last_usage_date === todayStr ? (profile.daily_usage_count || 0) : 0;
+      
+      if ((planLimit as number) === -1 || currentUsage < planLimit) {
+        const { error: updateError } = await supabase
+          .from("profiles")
+          .update({
+            daily_usage_count: currentUsage + 1,
+            last_usage_date: todayStr,
+            updated_at: new Date().toISOString(),
+          } as any)
+          .eq("id", user.id);
+          
+        if (updateError) {
+          console.error("Manual fallback usage update failed:", updateError);
+          rpcError = updateError;
+        } else {
+          incrementResult = true;
+          rpcError = null;
+        }
+      } else {
+        incrementResult = false;
+        rpcError = null;
+      }
+    }
 
     if (rpcError) {
-      console.error("Error calling increment_daily_usage RPC:", rpcError);
+      console.error("Error validating usage limits:", rpcError);
       return NextResponse.json({
         error: "Failed to validate usage limits. Please try again.",
       }, { status: 500 });
@@ -50,9 +86,13 @@ export async function POST(req: NextRequest) {
 
     // Check if limit was reached
     if (!incrementResult) {
-      const limitValue = planLimit === -1 ? "unlimited" : planLimit;
+      const limitValue = (planLimit as number) === -1 ? "unlimited" : planLimit;
+      const errorMsg = plan === "Free"
+        ? "AI Autofill is a premium feature. Please upgrade to a paid subscription (Pro or Unlimited) to use the automatic AI Agent, or apply manually instead."
+        : `Daily limit reached. ${plan} users are limited to ${limitValue} AI applications per day. ${plan === "Pro" ? "Upgrade to Unlimited for unrestricted usage." : ""}`;
+
       return NextResponse.json({
-        error: `Daily limit reached. ${plan} users are limited to ${limitValue} AI applications per day. ${plan === "Free" ? "Please upgrade your subscription tier." : plan === "Pro" ? "Upgrade to Unlimited for unrestricted usage." : ""}`,
+        error: errorMsg,
         limitReached: true,
         plan,
       }, { status: 403 });

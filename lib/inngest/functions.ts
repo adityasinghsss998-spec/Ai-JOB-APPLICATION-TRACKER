@@ -49,7 +49,8 @@ export const detectFormFieldsFn = inngest.createFunction(
       const missing: string[] = [];
       const hasResume = resumes && resumes.length > 0;
 
-      for (const field of fields) {
+      const fieldsList = fields || [];
+      for (const field of fieldsList) {
         if (!field.required) continue;
 
         const fieldName = field.name.toLowerCase();

@@ -51,8 +51,12 @@ export async function POST(req: NextRequest) {
     // Use configured plan limit (negative values indicate unlimited)
     if (planLimit >= 0 && usageCount >= planLimit) {
       const limitValue = planLimit;
+      const errorMsg = plan === "Free"
+        ? "AI Autofill is a premium feature. Please upgrade to a paid subscription (Pro or Unlimited) to use the automatic AI Agent, or apply manually instead."
+        : `Daily limit reached. ${plan} users are limited to ${limitValue} AI applications per day. ${plan === "Pro" ? "Upgrade to Unlimited for unrestricted usage." : ""}`;
+
       return NextResponse.json({
-        error: `Daily limit reached. ${plan} users are limited to ${limitValue} AI applications per day. ${plan === "Free" ? "Please upgrade your subscription tier." : plan === "Pro" ? "Upgrade to Unlimited for unrestricted usage." : ""}`,
+        error: errorMsg,
         limitReached: true,
         plan,
       }, { status: 403 });
