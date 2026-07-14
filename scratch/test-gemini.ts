@@ -3,7 +3,7 @@ dotenv.config({ path: ".env.local" });
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const apiKey = process.argv[2] || process.env.GEMINI_API_KEY;
+const apiKey = (process.argv[2] || process.env.GEMINI_API_KEY) as string;
 if (!apiKey) { console.error("Pass API key as arg or set GEMINI_API_KEY in .env.local"); process.exit(1); }
 
 const candidates = [
