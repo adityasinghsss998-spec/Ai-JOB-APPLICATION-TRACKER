@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { inngest } from "@/lib/inngest";
+import { PLAN_LIMITS } from "@/lib/plan-limits";
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -30,6 +31,7 @@ export async function POST(req: NextRequest) {
 
     const profile = profileRaw as any;
     const plan = profile.plan_name || "Free";
+    const planLimit = profile.plan_limit ?? PLAN_LIMITS[plan as keyof typeof PLAN_LIMITS] ?? PLAN_LIMITS.Free;
     const todayStr = new Date().toISOString().split("T")[0];
     let usageCount = profile.daily_usage_count || 0;
 
@@ -46,17 +48,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Block if user has reached daily limits based on subscription tier
-    if (plan === "Free" && usageCount >= 5) {
+    // Use configured plan limit (negative values indicate unlimited)
+    if (planLimit >= 0 && usageCount >= planLimit) {
+      const limitValue = planLimit;
       return NextResponse.json({
-        error: "Daily limit reached. Free users are limited to 5 AI applications per day. Please upgrade your subscription tier.",
-        limitReached: true,
-        plan,
-      }, { status: 403 });
-    }
-
-    if (plan === "Pro" && usageCount >= 25) {
-      return NextResponse.json({
-        error: "Daily limit reached. Pro users are limited to 25 AI applications per day. Upgrade to Unlimited for unrestricted usage.",
+        error: `Daily limit reached. ${plan} users are limited to ${limitValue} AI applications per day. ${plan === "Free" ? "Please upgrade your subscription tier." : plan === "Pro" ? "Upgrade to Unlimited for unrestricted usage." : ""}`,
         limitReached: true,
         plan,
       }, { status: 403 });

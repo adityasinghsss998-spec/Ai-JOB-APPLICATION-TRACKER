@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { PLAN_LIMITS } from "@/lib/plan-limits";
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest) {
           periodEnd = new Date(subscription.current_period_end * 1000).toISOString();
         }
 
-        const planLimit = planName === "Pro" ? 25 : -1;
+        const planLimit = PLAN_LIMITS[planName as keyof typeof PLAN_LIMITS] ?? PLAN_LIMITS.Free;
 
         const { error } = await supabase
           .from("profiles" as any)
@@ -104,7 +105,7 @@ export async function POST(req: NextRequest) {
         }
 
         let planName = subscription.metadata?.planName || profile.plan_name;
-        
+
         if (!subscription.metadata?.planName && subscription.items?.data?.[0]) {
           const prodId = subscription.items.data[0].price.product as string;
           const product = await stripe.products.retrieve(prodId);
@@ -112,7 +113,8 @@ export async function POST(req: NextRequest) {
           if (product.name.includes("Unlimited")) planName = "Unlimited";
         }
 
-        const planLimit = planName === "Pro" ? 25 : planName === "Unlimited" ? -1 : 3;
+        const planLimit = PLAN_LIMITS[planName as keyof typeof PLAN_LIMITS] ?? PLAN_LIMITS.Free;
+        const freePlanLimit = PLAN_LIMITS.Free;
         const status = subscription.status;
 
         const { error: updateError } = await supabase
@@ -123,7 +125,7 @@ export async function POST(req: NextRequest) {
             current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
             payment_status: status === "active" ? "paid" : "unpaid",
             plan_name: status === "active" ? planName : "Free",
-            plan_limit: status === "active" ? planLimit : 3,
+            plan_limit: status === "active" ? planLimit : freePlanLimit,
             updated_at: new Date().toISOString(),
           } as any)
           .eq("id", profile.id);
@@ -156,7 +158,7 @@ export async function POST(req: NextRequest) {
           .from("profiles" as any)
           .update({
             plan_name: "Free",
-            plan_limit: 3,
+            plan_limit: PLAN_LIMITS.Free,
             subscription_status: "canceled",
             payment_status: "unpaid",
             stripe_subscription_id: null,

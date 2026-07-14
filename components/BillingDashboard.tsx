@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { CreditCardIcon, SparklesIcon, TickDouble02Icon } from "@hugeicons/core-free-icons";
+import { getPlanLimit, PLAN_LIMITS } from "@/lib/plan-limits";
 
 interface BillingDashboardProps {
   profile: any;
@@ -26,7 +27,7 @@ export default function BillingDashboard({ profile }: BillingDashboardProps) {
   const isToday = lastUsageDate === todayStr;
   const currentUsage = isToday ? dailyUsage : 0;
 
-  const currentLimit = planName === "Free" ? 5 : planName === "Pro" ? 25 : Infinity;
+  const currentLimit = getPlanLimit(planName);
 
   const handleCheckout = async (targetPlan: string) => {
     setLoadingPlan(targetPlan);
@@ -75,7 +76,7 @@ export default function BillingDashboard({ profile }: BillingDashboardProps) {
       price: "$0",
       description: "Get started with automated job applications",
       features: [
-        "Maximum 3 AI applications/day (Limit: 5)",
+        `Maximum ${PLAN_LIMITS.Free} AI applications/day`,
         "Standard field detection",
         "Form submission simulation",
       ],
@@ -87,7 +88,7 @@ export default function BillingDashboard({ profile }: BillingDashboardProps) {
       price: "$19",
       description: "Scale your job hunt with more applications",
       features: [
-        "Maximum 25 AI applications/day",
+        `Maximum ${PLAN_LIMITS.Pro} AI applications/day`,
         "Stagehand browser automation",
         "Live session replay URLs",
         "Custom field verification",
