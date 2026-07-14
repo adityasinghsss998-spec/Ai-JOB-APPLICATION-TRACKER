@@ -32,10 +32,14 @@ export async function POST(req: NextRequest) {
     const platformFilteredJobs = existingJobs?.filter((job: any) => platforms.includes(job.platform)) || [];
 
     // Check if we have cached results that are less than 6 hours old (only if not forcing refresh)
+    // Cache is valid only if EVERY requested platform has at least one job within the time window
     const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
-    const isCacheValid = !forceRefresh && platformFilteredJobs.length > 0 && platformFilteredJobs.every((job: any) => {
-      const fetchedTime = new Date(job.fetched_at).getTime();
-      return (Date.now() - fetchedTime) < SIX_HOURS_MS;
+    const isCacheValid = !forceRefresh && platforms.every((platform: string) => {
+      const platformJobs = platformFilteredJobs.filter((job: any) => job.platform === platform);
+      return platformJobs.length > 0 && platformJobs.some((job: any) => {
+        const fetchedTime = new Date(job.fetched_at).getTime();
+        return (Date.now() - fetchedTime) < SIX_HOURS_MS;
+      });
     });
 
     if (isCacheValid) {

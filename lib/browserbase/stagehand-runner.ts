@@ -25,18 +25,20 @@ export interface AutomationResult {
 async function downloadResume(fileUrl: string, fileName: string): Promise<string> {
   const tempDir = os.tmpdir();
   const filePath = path.join(tempDir, `${Date.now()}_${fileName}`);
-  
+
   const response = await fetch(fileUrl);
   if (!response.ok) {
     throw new Error(`Failed to fetch resume: ${response.statusText}`);
   }
 
-  const fileStream = fs.createWriteStream(filePath);
-  if (response.body) {
-    const reader = Readable.fromWeb(response.body as any);
-    reader.pipe(fileStream);
-    await finished(fileStream);
+  if (!response.body) {
+    throw new Error(`Failed to download resume: Response body is missing for URL ${fileUrl}`);
   }
+
+  const fileStream = fs.createWriteStream(filePath);
+  const reader = Readable.fromWeb(response.body as any);
+  reader.pipe(fileStream);
+  await finished(fileStream);
 
   return filePath;
 }
@@ -162,9 +164,7 @@ export async function submitJobApplication(
 
     // Connect Playwright to upload file or handle specific actions
     const { chromium } = await import("playwright-core");
-    const browser = await chromium.connectOverCDP({
-      wsEndpoint: stagehandInstance.connectURL(),
-    });
+    const browser = await chromium.connectOverCDP(stagehandInstance.connectURL());
     const pwContext = browser.contexts()[0];
     const pwPage = pwContext.pages()[0];
 
