@@ -2,13 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2024-06-20" as any,
-});
-
 export async function POST(req: NextRequest) {
   const body = await req.text();
   const sig = req.headers.get("stripe-signature");
+
+  const stripeSecret = process.env.STRIPE_SECRET_KEY;
+  if (!stripeSecret) {
+    console.error("STRIPE_SECRET_KEY is not configured");
+    return NextResponse.json({ error: "Stripe configuration is missing on server" }, { status: 500 });
+  }
+
+  const stripe = new Stripe(stripeSecret, {
+    apiVersion: "2024-06-20" as any,
+  });
 
   let event: Stripe.Event;
 
