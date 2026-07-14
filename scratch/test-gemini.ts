@@ -1,14 +1,18 @@
+import dotenv from "dotenv";
+dotenv.config({ path: ".env.local" });
+
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const apiKey = process.argv[2];
-if (!apiKey) { console.error("Pass API key as arg"); process.exit(1); }
+const apiKey = process.argv[2] || process.env.GEMINI_API_KEY;
+if (!apiKey) { console.error("Pass API key as arg or set GEMINI_API_KEY in .env.local"); process.exit(1); }
 
 const candidates = [
   "gemini-2.5-flash",
   "gemini-2.5-flash-lite",
   "gemini-2.0-flash-lite",
-  "gemini-flash-latest",
-  "gemini-flash-lite-latest",
+  "gemini-2.0-flash",
+  "gemini-1.5-flash",
+  "gemini-1.5-flash-8b",
 ];
 
 async function test() {

@@ -1,5 +1,5 @@
 export const PLAN_LIMITS = {
-  Free: 3,
+  Free: 0,
   Pro: 50,
   Unlimited: 9999,
 } as const;

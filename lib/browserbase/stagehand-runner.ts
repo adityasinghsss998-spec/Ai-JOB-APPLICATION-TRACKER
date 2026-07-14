@@ -44,19 +44,62 @@ async function downloadResume(fileUrl: string, fileName: string): Promise<string
 }
 
 /**
+ * Resolves the automation mode based on environment variables
+ */
+function getAutomationMode(): { mode: "SIMULATION" | "LOCAL" | "BROWSERBASE"; apiKey?: string; projectId?: string } {
+  const apiKey = process.env.BROWSERBASE_API_KEY;
+  const projectId = process.env.BROWSERBASE_PROJECT_ID;
+  const geminiKey = process.env.GEMINI_API_KEY;
+  const modeEnv = (process.env.AUTOMATION_MODE || "LOCAL").toUpperCase();
+
+  if (modeEnv === "SIMULATION") {
+    return { mode: "SIMULATION" };
+  }
+
+  const hasBrowserbase = apiKey && projectId && apiKey !== projectId && !apiKey.includes("placeholder") && !projectId.includes("placeholder");
+
+  if (modeEnv === "BROWSERBASE") {
+    if (hasBrowserbase) {
+      return { mode: "BROWSERBASE", apiKey, projectId };
+    } else if (geminiKey && !geminiKey.includes("placeholder")) {
+      console.warn("BROWSERBASE mode requested but credentials invalid/missing. Falling back to LOCAL mode.");
+      return { mode: "LOCAL" };
+    } else {
+      console.warn("BROWSERBASE mode requested but credentials and GEMINI_API_KEY missing. Falling back to SIMULATION mode.");
+      return { mode: "SIMULATION" };
+    }
+  }
+
+  // Default is LOCAL if GEMINI_API_KEY is configured
+  if (geminiKey && !geminiKey.includes("placeholder")) {
+    if (hasBrowserbase && modeEnv !== "LOCAL") {
+      return { mode: "BROWSERBASE", apiKey, projectId };
+    }
+    return { mode: "LOCAL" };
+  }
+
+  console.warn("No valid AI credentials found. Falling back to SIMULATION mode.");
+  return { mode: "SIMULATION" };
+}
+
+/**
  * Detects form fields on the job page using Browserbase + Stagehand
  */
 export async function detectFormFields(
   jobUrl: string,
   platform: string
 ): Promise<{ fields: DetectedField[]; sessionId: string }> {
-  const apiKey = process.env.BROWSERBASE_API_KEY;
-  const projectId = process.env.BROWSERBASE_PROJECT_ID;
+  const { mode, apiKey, projectId } = getAutomationMode();
 
-  if (!apiKey || !projectId || apiKey === projectId || apiKey.includes("placeholder") || projectId.includes("placeholder")) {
-    console.warn("BROWSERBASE_API_KEY or BROWSERBASE_PROJECT_ID missing, identical, or placeholder. Using Simulation Mode for field detection.");
+  if (mode === "SIMULATION") {
+    console.log("Using Simulation Mode for field detection.");
     return runDetectionSimulation(platform);
   }
+
+  const isLocal = mode === "LOCAL";
+  const isHeadless = process.env.STAGEHAND_HEADLESS === "true" || (isLocal ? false : true);
+
+  console.log(`Running field detection in ${mode} mode (headless: ${isHeadless})...`);
 
   let stagehandInstance: any = null;
   try {
@@ -64,25 +107,33 @@ export async function detectFormFields(
     const { Stagehand } = await import("@browserbasehq/stagehand");
     
     stagehandInstance = new Stagehand({
-      env: "BROWSERBASE",
-      apiKey,
-      projectId,
-      modelName: "google/gemini-2.0-flash",
-      modelClientOptions: {
-        apiKey: process.env.GEMINI_API_KEY,
+      env: mode,
+      apiKey: isLocal ? undefined : apiKey,
+      projectId: isLocal ? undefined : projectId,
+      localBrowserLaunchOptions: {
+        headless: isHeadless,
       },
+      model: {
+        modelName: "google/gemini-2.0-flash",
+        clientOptions: {
+          apiKey: process.env.GEMINI_API_KEY,
+        }
+      }
     } as any);
 
     await stagehandInstance.init();
-    const page = stagehandInstance.page;
+    const page = stagehandInstance.context.activePage();
+    if (!page) {
+      throw new Error("Failed to get active browser page");
+    }
     await page.goto(jobUrl);
 
     // Give it a moment to load fully
     await page.waitForLoadState("networkidle");
 
-    const result = await stagehandInstance.extract({
-      instruction: "Identify all required and optional input fields in the job application form, such as contact info, links, and resume uploads.",
-      schema: z.object({
+    const result = await stagehandInstance.extract(
+      "Identify all required and optional input fields in the job application form, such as contact info, links, and resume uploads.",
+      z.object({
         fields: z.array(
           z.object({
             name: z.string().describe("Internal name or slug of the field"),
@@ -91,10 +142,11 @@ export async function detectFormFields(
             required: z.boolean(),
           })
         ),
-      }),
-    });
+      })
+    );
 
-    const sessionId = stagehandInstance.connectURL()?.split("?")[0]?.split("/").pop() || "live-session";
+    const rawSessionId = stagehandInstance.connectURL()?.split("?")[0]?.split("/").pop() || "live-session";
+    const sessionId = isLocal ? `local-session-detect-${rawSessionId}` : rawSessionId;
     await stagehandInstance.close();
 
     return {
@@ -126,13 +178,17 @@ export async function submitJobApplication(
   detectedFields: DetectedField[],
   verifiedFields?: Record<string, string>
 ): Promise<AutomationResult> {
-  const apiKey = process.env.BROWSERBASE_API_KEY;
-  const projectId = process.env.BROWSERBASE_PROJECT_ID;
+  const { mode, apiKey, projectId } = getAutomationMode();
 
-  if (!apiKey || !projectId || apiKey === projectId || apiKey.includes("placeholder") || projectId.includes("placeholder")) {
-    console.warn("BROWSERBASE_API_KEY or BROWSERBASE_PROJECT_ID missing, identical, or placeholder. Using Simulation Mode for form submission.");
+  if (mode === "SIMULATION") {
+    console.log("Using Simulation Mode for form submission.");
     return runSubmissionSimulation();
   }
+
+  const isLocal = mode === "LOCAL";
+  const isHeadless = process.env.STAGEHAND_HEADLESS === "true" || (isLocal ? false : true);
+
+  console.log(`Running form submission in ${mode} mode (headless: ${isHeadless})...`);
 
   let stagehandInstance: any = null;
   let tempResumePath = "";
@@ -148,17 +204,25 @@ export async function submitJobApplication(
     // 2. Initialize Stagehand
     const { Stagehand } = await import("@browserbasehq/stagehand");
     stagehandInstance = new Stagehand({
-      env: "BROWSERBASE",
-      apiKey,
-      projectId,
-      modelName: "google/gemini-2.0-flash",
-      modelClientOptions: {
-        apiKey: process.env.GEMINI_API_KEY,
+      env: mode,
+      apiKey: isLocal ? undefined : apiKey,
+      projectId: isLocal ? undefined : projectId,
+      localBrowserLaunchOptions: {
+        headless: isHeadless,
       },
+      model: {
+        modelName: "google/gemini-2.0-flash",
+        clientOptions: {
+          apiKey: process.env.GEMINI_API_KEY,
+        }
+      }
     } as any);
 
     await stagehandInstance.init();
-    const page = stagehandInstance.page;
+    const page = stagehandInstance.context.activePage();
+    if (!page) {
+      throw new Error("Failed to get active browser page");
+    }
     await page.goto(jobUrl);
     await page.waitForLoadState("networkidle");
 
@@ -238,7 +302,8 @@ export async function submitJobApplication(
     await stagehandInstance.act("Click the submit application button");
     await page.waitForTimeout(3000); // Wait for submission load
 
-    const sessionId = stagehandInstance.connectURL()?.split("?")[0]?.split("/").pop() || "live-session";
+    const rawSessionId = stagehandInstance.connectURL()?.split("?")[0]?.split("/").pop() || "live-session";
+    const sessionId = isLocal ? `local-session-submit-${rawSessionId}` : rawSessionId;
     await stagehandInstance.close();
 
     // Cleanup temp file
@@ -268,7 +333,7 @@ export async function submitJobApplication(
     }
     return {
       success: false,
-      sessionId: "failed-session",
+      sessionId: isLocal ? "local-session-failed" : "failed-session",
       error: err.message || "An unknown error occurred during form submission.",
     };
   }

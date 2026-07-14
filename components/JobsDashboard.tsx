@@ -1318,9 +1318,9 @@ export default function JobsDashboard({ profile, initialActivities, mode = "all"
                     {limitErrorMessage}
                   </p>
                 </div>
-                <div className="flex items-center gap-3 pt-2">
+                <div className="flex flex-col gap-2 pt-2">
                   <Button 
-                    className="flex-1" 
+                    className="w-full" 
                     onClick={() => {
                       setApplyDialogOpen(false);
                       router.push("/dashboard/billing");
@@ -1328,9 +1328,22 @@ export default function JobsDashboard({ profile, initialActivities, mode = "all"
                   >
                     Upgrade Plan
                   </Button>
-                  <Button variant="outline" className="flex-1" onClick={() => setApplyDialogOpen(false)}>
-                    Dismiss
-                  </Button>
+                  <div className="flex gap-2 w-full">
+                    <Button 
+                      variant="outline" 
+                      className="flex-1 text-xs" 
+                      onClick={handleApplyManually}
+                    >
+                      Apply Manually
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      className="flex-1 text-xs text-muted-foreground" 
+                      onClick={() => setApplyDialogOpen(false)}
+                    >
+                      Dismiss
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}

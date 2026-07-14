@@ -126,7 +126,7 @@ function AppSidebar() {
                 render={
                   <Link
                     href={item.href}
-                    className="flex items-center gap-3 text-xs font-semibold px-3 py-2.5 rounded-xl hover:bg-indigo-500/10 hover:text-indigo-400 transition-colors"
+                    className="flex items-center gap-3 text-sm font-semibold px-3 py-2 rounded-xl hover:bg-indigo-500/10 hover:text-indigo-400 transition-colors"
                   >
                     <HugeiconsIcon icon={item.icon} strokeWidth={2} size={20} className="text-muted-foreground group-hover:text-indigo-400" />
                     {!isCollapsed && <span>{item.title}</span>}
@@ -171,7 +171,7 @@ function AppSidebar() {
               render={
                 <Link
                   href="/dashboard/settings"
-                  className="flex items-center gap-3 text-xs font-semibold px-3 py-2.5 rounded-xl hover:bg-muted/60 transition-colors"
+                  className="flex items-center gap-3 text-sm font-semibold px-3 py-2 rounded-xl hover:bg-muted/60 transition-colors"
                 >
                   <HugeiconsIcon
                     icon={Settings02Icon}
